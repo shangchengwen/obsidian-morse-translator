@@ -1,0 +1,91 @@
+/* 摩尔斯码翻译器样式 */
+.morse-translator-float {
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px var(--background-modifier-box-shadow);
+    padding: 12px;
+    width: 340px;
+    z-index: 1000;
+}
+
+.morse-translator-titlebar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    font-weight: bold;
+}
+
+.morse-translator-input {
+    width: 100%;
+    padding: 8px;
+    margin: 8px 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-family: monospace;
+}
+
+.morse-translator-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
+
+.morse-translator-bottom-bar {
+    transition: all 0.2s ease;
+}
+
+.morse-translator-toggle {
+    transition: all 0.2s ease;
+}
+
+.morse-translator-toggle:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.morse-translator-hint-preview {
+    transition: color 0.2s ease;
+}
+
+.morse-translator-collapsible {
+    transition: all 0.2s ease;
+}
+
+.morse-translator-checkbox {
+    cursor: pointer;
+    user-select: none;
+}
+
+.morse-translator-checkbox:hover {
+    color: var(--text-accent);
+}
+
+.morse-translator-settings-btn {
+    transition: all 0.2s ease;
+}
+
+.morse-translator-settings-btn:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+    color: var(--text-normal);
+}
+
+.morse-translator-close {
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    padding: 0 4px;
+    border-radius: 4px;
+}
+
+.morse-translator-close:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}

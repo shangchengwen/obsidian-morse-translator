@@ -1,0 +1,16 @@
+{
+  "dotChars": [
+    ".",
+    "．",
+    "·"
+  ],
+  "dashChars": [
+    "-",
+    "—",
+    "－"
+  ],
+  "autoOpen": true,
+  "autoInsert": false,
+  "autoInsertDelay": 1000,
+  "language": "en"
+}
