@@ -3,6 +3,8 @@
 [English](#english) | [中文](#中文)
 
 ---
+![](Preview.gif)
+
 
 ## 中文
 
@@ -28,10 +30,6 @@
 1. 下载插件文件夹，放入 Obsidian 库目录下的 `.obsidian/plugins/` 文件夹中。
 2. 在 Obsidian 中打开 `设置` → `第三方插件`，关闭安全模式。
 3. 找到 `摩尔斯码翻译器` 并启用。
-
-#### 通过 BRAT 安装（待上架社区市场后可用）
-
-- 使用 BRAT 插件添加本仓库地址即可安装。
 
 ### 使用方法
 
@@ -111,10 +109,6 @@ Morse Translator is an Obsidian plugin that allows you to enter Morse code in a 
 1. Download the plugin folder and place it in `.obsidian/plugins/` under your Obsidian vault.
 2. Open `Settings` → `Third-party plugins` in Obsidian, turn off Safe Mode.
 3. Find `Morse Translator` and enable it.
-
-#### Via BRAT (once available in community store)
-
-- Use the BRAT plugin and add this repository URL to install.
 
 ### Usage
 
