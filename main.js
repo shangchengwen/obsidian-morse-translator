@@ -19,6 +19,10 @@ const LOCALES = {
         dotCharsDesc: '用于表示摩尔斯码中的点（·）的字符（多个字符用逗号分隔）',
         dashChars: '横字符集合',
         dashCharsDesc: '用于表示摩尔斯码中的横（-）的字符（多个字符用逗号分隔）',
+        deleteKeys: '删除按键',
+        deleteKeysDesc: '按下这些按键时删除光标前的字符（有输入内容时删除输入框，否则删除文档中的字符）多个按键用逗号分隔',
+        newlineKeys: '换行按键',
+        newlineKeysDesc: '按下这些按键时在文档中插入换行（有输入内容时无效）多个按键用逗号分隔',
         language: '界面语言',
         languageDesc: '选择插件界面的显示语言',
         languageZh: '中文',
@@ -60,6 +64,10 @@ const LOCALES = {
         dotCharsDesc: 'Characters representing dots (·) in Morse code (separate multiple with commas)',
         dashChars: 'Dash Characters',
         dashCharsDesc: 'Characters representing dashes (-) in Morse code (separate multiple with commas)',
+        deleteKeys: 'Delete Keys',
+        deleteKeysDesc: 'Press these keys to delete character before cursor (delete in input box if has content, otherwise delete in document). Separate multiple with commas',
+        newlineKeys: 'Newline Keys',
+        newlineKeysDesc: 'Press these keys to insert newline in document (ignored when input box has content). Separate multiple with commas',
         language: 'Interface Language',
         languageDesc: 'Select the display language for the plugin interface',
         languageZh: '中文',
@@ -282,6 +290,58 @@ class MorseTranslatorPlugin extends Plugin {
                     this.floatHint.className = 'morse-translator-hint';
                 }
             }
+        }
+    }
+    
+    // 执行删除操作（有输入内容时删除输入框，否则删除文档中的字符）
+    performDelete() {
+        if (this.floatInput && this.floatInput.value.length > 0) {
+            // 输入框有内容：删除输入框中的最后一个字符
+            const currentValue = this.floatInput.value;
+            this.floatInput.value = currentValue.slice(0, -1);
+            // 触发 input 事件以更新译码预览
+            const inputEvent = new Event('input');
+            this.floatInput.dispatchEvent(inputEvent);
+            console.log('⌫ [Morse Translator] 删除输入框字符');
+        } else {
+            // 输入框为空：删除文档中光标前的字符
+            const currentEditor = this.getActiveEditor();
+            if (currentEditor) {
+                const cursor = currentEditor.getCursor();
+                if (cursor.ch > 0) {
+                    // 删除光标前一个字符
+                    const from = { line: cursor.line, ch: cursor.ch - 1 };
+                    const to = cursor;
+                    currentEditor.replaceRange('', from, to);
+                    currentEditor.setCursor({ line: cursor.line, ch: cursor.ch - 1 });
+                    console.log('⌫ [Morse Translator] 删除文档字符');
+                } else if (cursor.line > 0) {
+                    // 光标在行首，删除换行符（将当前行合并到上一行）
+                    const prevLineLength = currentEditor.getLine(cursor.line - 1).length;
+                    const from = { line: cursor.line - 1, ch: prevLineLength };
+                    const to = cursor;
+                    currentEditor.replaceRange('', from, to);
+                    currentEditor.setCursor({ line: cursor.line - 1, ch: prevLineLength });
+                    console.log('⌫ [Morse Translator] 删除换行符');
+                }
+            }
+        }
+    }
+    
+    // 执行换行操作（在文档中插入换行）
+    performNewline() {
+        // 只有当输入框为空时才执行换行
+        if (this.floatInput && this.floatInput.value.length > 0) {
+            console.log('⏎ [Morse Translator] 输入框有内容，忽略换行');
+            return;
+        }
+        
+        const currentEditor = this.getActiveEditor();
+        if (currentEditor) {
+            const cursor = currentEditor.getCursor();
+            currentEditor.replaceRange('\n', cursor);
+            currentEditor.setCursor({ line: cursor.line + 1, ch: 0 });
+            console.log('⏎ [Morse Translator] 插入换行');
         }
     }
     
@@ -666,6 +726,23 @@ class MorseTranslatorPlugin extends Plugin {
         };
         
         const handleKeydown = (e) => {
+            // 检查是否是删除按键
+            const deleteKeys = this.settings.deleteKeys || ['Backspace', 'Delete'];
+            if (deleteKeys.includes(e.key)) {
+                e.preventDefault();
+                this.performDelete();
+                return;
+            }
+            
+            // 检查是否是换行按键
+            const newlineKeys = this.settings.newlineKeys || ['Enter'];
+            if (newlineKeys.includes(e.key) && e.key !== 'Enter') {
+                // 非 Enter 的换行按键
+                e.preventDefault();
+                this.performNewline();
+                return;
+            }
+            
             if (e.key === 'Enter') {
                 // 清除自动插入定时器
                 if (this.autoInsertTimeout) {
@@ -803,6 +880,8 @@ class MorseTranslatorPlugin extends Plugin {
 const DEFAULT_SETTINGS = {
     dotChars: ['.', '．', '·'],  // 支持多个点字符
     dashChars: ['-', '—', '－'],  // 支持多个横字符
+    deleteKeys: ['Backspace', 'Delete'],  // 删除按键，默认 Backspace 和 Delete
+    newlineKeys: [],  // 换行按键，默认空（因为 Enter 用于确认翻译）
     autoOpen: false,
     autoInsert: false,      // 全局默认自动输入设置
     autoInsertDelay: 1000,   // 自动输入等待时间（毫秒），默认1秒
@@ -967,6 +1046,32 @@ class MorseSettingTab extends PluginSettingTab {
                             .replace('{dash}', this.plugin.settings.dashChars[0] || '-');
                         this.plugin.floatInput.placeholder = placeholder;
                     }
+                }));
+        
+        // 删除按键设置
+        new Setting(containerEl)
+            .setName(this.plugin.t('deleteKeys'))
+            .setDesc(this.plugin.t('deleteKeysDesc'))
+            .addText(text => text
+                .setPlaceholder('Backspace , Delete')
+                .setValue((this.plugin.settings.deleteKeys || ['Backspace', 'Delete']).join(','))
+                .onChange(async (value) => {
+                    const keys = value.split(',').filter(k => k.trim().length > 0).map(k => k.trim());
+                    this.plugin.settings.deleteKeys = keys.length > 0 ? keys : ['Backspace', 'Delete'];
+                    await this.plugin.saveSettings();
+                }));
+        
+        // 换行按键设置
+        new Setting(containerEl)
+            .setName(this.plugin.t('newlineKeys'))
+            .setDesc(this.plugin.t('newlineKeysDesc'))
+            .addText(text => text
+                .setPlaceholder('例如: Ctrl+Enter , Shift+Enter , Cmd+Enter')
+                .setValue((this.plugin.settings.newlineKeys || []).join(','))
+                .onChange(async (value) => {
+                    const keys = value.split(',').filter(k => k.trim().length > 0).map(k => k.trim());
+                    this.plugin.settings.newlineKeys = keys;
+                    await this.plugin.saveSettings();
                 }));
         
         // 语言切换设置
