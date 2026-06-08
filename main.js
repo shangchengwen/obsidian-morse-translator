@@ -22,7 +22,7 @@ const LOCALES = {
         deleteKeys: '删除按键',
         deleteKeysDesc: '按下这些按键时删除光标前的字符（有输入内容时删除输入框，否则删除文档中的字符）多个按键用逗号分隔',
         newlineKeys: '换行按键',
-        newlineKeysDesc: '按下这些按键时在文档中插入换行（有输入内容时无效）多个按键用逗号分隔',
+        newlineKeysDesc: '按下这些按键时：有输入内容则翻译并插入，无法翻译则清空输入框；无输入内容时在文档中插入换行。多个按键用逗号分隔',
         language: '界面语言',
         languageDesc: '选择插件界面的显示语言',
         languageZh: '中文',
@@ -35,7 +35,7 @@ const LOCALES = {
         windowClosed: '窗口已关闭',
         // 使用说明
         usageTitle: '使用说明',
-        usageText: '• 使用命令 "切换摩尔斯码翻译器" 打开/关闭窗口\n• 输入摩尔斯码，空格分隔字母，斜杠(/)分隔单词\n• 按 Enter 插入翻译结果到光标位置（始终可用）\n• 点击"设置选项"展开/折叠更多设置\n• 按 Esc 关闭窗口\n• 窗口位置可拖动',
+        usageText: '• 使用命令 "切换摩尔斯码翻译器" 打开/关闭窗口\n• 输入摩尔斯码，空格分隔字母，斜杠(/)分隔单词\n• 按 Enter 或自定义换行键插入翻译结果\n• 无法识别的摩尔斯码会显示为 ?\n• 点击"设置选项"展开/折叠更多设置\n• 按 Esc 关闭窗口\n• 窗口位置可拖动',
         warningText: '⚠️ 注意：请确保文档处于编辑模式（实时预览或源码模式），阅读模式下无法使用翻译器',
         // 窗口内文本
         inputPlaceholder: '输入摩尔斯码（使用 {dot}/{dash} 等）...',
@@ -67,7 +67,7 @@ const LOCALES = {
         deleteKeys: 'Delete Keys',
         deleteKeysDesc: 'Press these keys to delete character before cursor (delete in input box if has content, otherwise delete in document). Separate multiple with commas',
         newlineKeys: 'Newline Keys',
-        newlineKeysDesc: 'Press these keys to insert newline in document (ignored when input box has content). Separate multiple with commas',
+        newlineKeysDesc: 'Press these keys: translate and insert if input has content, clear input if cannot translate; insert newline in document if input is empty. Separate multiple with commas',
         language: 'Interface Language',
         languageDesc: 'Select the display language for the plugin interface',
         languageZh: '中文',
@@ -79,7 +79,7 @@ const LOCALES = {
         windowOpened: 'Window opened',
         windowClosed: 'Window closed',
         usageTitle: 'Usage Instructions',
-        usageText: '• Use command "Toggle Morse Translator" to open/close window\n• Enter Morse code, spaces separate letters, slashes(/) separate words\n• Press Enter to insert translation at cursor (always available)\n• Click "Settings" to expand/collapse more options\n• Press Esc to close window\n• Window is draggable',
+        usageText: '• Use command "Toggle Morse Translator" to open/close window\n• Enter Morse code, spaces separate letters, slashes(/) separate words\n• Press Enter or custom newline keys to insert translation\n• Unrecognized Morse code will be displayed as ?\n• Click "Settings" to expand/collapse more options\n• Press Esc to close window\n• Window is draggable',
         warningText: '⚠️ Note: Make sure the document is in edit mode (Live Preview or Source mode). Translator cannot be used in reading mode',
         inputPlaceholder: 'Enter Morse code (use {dot}/{dash} etc.)...',
         settingsOption: 'Settings',
@@ -265,7 +265,7 @@ class MorseTranslatorPlugin extends Plugin {
     // 执行插入操作
     performAutoInsert(morse, normalizedMorse) {
         let translation = this.translateMorse(normalizedMorse);
-        if (translation) {
+        if (translation && translation !== '') {
             // 应用大小写转换
             translation = this.applyCaseConversion(translation);
             
@@ -287,10 +287,11 @@ class MorseTranslatorPlugin extends Plugin {
                 }
                 if (this.floatHint) {
                     this.floatHint.textContent = '';
-                    this.floatHint.className = 'morse-translator-hint';
+                    this.floatHint.style.color = 'var(--text-muted)';
                 }
             }
         }
+        // 如果 translation 为空或只有 ?，不做任何操作
     }
     
     // 执行删除操作（有输入内容时删除输入框，否则删除文档中的字符）
@@ -698,14 +699,20 @@ class MorseTranslatorPlugin extends Plugin {
             const normalizedMorse = this.normalizeMorseInput(morse);
             let translation = this.translateMorse(normalizedMorse);
             
-            if (translation) {
+            if (translation && translation !== '') {
                 // 应用大小写转换
                 let displayTranslation = this.applyCaseConversion(translation);
                 hintPreview.textContent = `${this.t('decodePreview')}: ${displayTranslation}`;
-                hintPreview.style.color = 'var(--text-accent)';
+                
+                // 检查译码结果中是否包含 ?
+                if (displayTranslation.includes('?')) {
+                    hintPreview.style.color = 'var(--text-warning)';
+                } else {
+                    hintPreview.style.color = 'var(--text-accent)';
+                }
                 
                 // 自动输入逻辑：如果窗口内自动输入开关打开，设置定时器
-                if (this.windowAutoInsert && translation) {
+                if (this.windowAutoInsert) {
                     this.autoInsertTimeout = setTimeout(() => {
                         this.performAutoInsert(morse, normalizedMorse);
                         // 插入后清除输入框和提示
@@ -720,6 +727,7 @@ class MorseTranslatorPlugin extends Plugin {
                     }, this.settings.autoInsertDelay);
                 }
             } else {
+                // 这个分支理论上不会执行，因为 translateMorse 总会返回字符串（可能包含 ?）
                 hintPreview.textContent = this.t('cannotRecognize');
                 hintPreview.style.color = 'var(--text-error)';
             }
@@ -734,16 +742,11 @@ class MorseTranslatorPlugin extends Plugin {
                 return;
             }
             
-            // 检查是否是换行按键
-            const newlineKeys = this.settings.newlineKeys || ['Enter'];
-            if (newlineKeys.includes(e.key) && e.key !== 'Enter') {
-                // 非 Enter 的换行按键
-                e.preventDefault();
-                this.performNewline();
-                return;
-            }
+            // 检查是否是换行按键（包括 Enter 和自定义换行按键）
+            const newlineKeys = this.settings.newlineKeys || [];
+            const isNewlineKey = newlineKeys.includes(e.key);
             
-            if (e.key === 'Enter') {
+            if (isNewlineKey || e.key === 'Enter') {
                 // 清除自动插入定时器
                 if (this.autoInsertTimeout) {
                     clearTimeout(this.autoInsertTimeout);
@@ -752,17 +755,20 @@ class MorseTranslatorPlugin extends Plugin {
                 
                 e.preventDefault();
                 const morse = input.value.trim();
+                
                 if (morse) {
                     // 检查无效字符
                     if (this.hasInvalidChars(morse)) {
                         input.value = '';
                         hintPreview.textContent = '';
+                        hintPreview.style.color = 'var(--text-muted)';
                         return;
                     }
                     
                     const normalizedMorse = this.normalizeMorseInput(morse);
                     let translation = this.translateMorse(normalizedMorse);
-                    if (translation) {
+                    
+                    if (translation && translation !== '') {
                         // 应用大小写转换
                         translation = this.applyCaseConversion(translation);
                         
@@ -783,10 +789,17 @@ class MorseTranslatorPlugin extends Plugin {
                         hintPreview.style.color = 'var(--text-muted)';
                         input.focus();
                     } else {
+                        // 无法译码时，删除输入框中的内容
                         input.value = '';
                         hintPreview.textContent = '';
+                        hintPreview.style.color = 'var(--text-muted)';
+                        input.focus();
                     }
+                } else if (isNewlineKey) {
+                    // 输入框为空且是自定义换行按键时，在文档中插入换行
+                    this.performNewline();
                 }
+                // 如果输入框为空且是 Enter 键，不做任何操作（避免插入空行）
             } else if (e.key === 'Escape') {
                 this.closeTranslator();
             }
@@ -835,7 +848,7 @@ class MorseTranslatorPlugin extends Plugin {
                 if (char) {
                     wordTrans += char;
                 } else {
-                    wordTrans += '?';
+                    wordTrans += '';  // 无法识别的字符显示为 ?
                 }
             }
             if (wordTrans) {
@@ -844,7 +857,7 @@ class MorseTranslatorPlugin extends Plugin {
             }
         }
         
-        return translation;
+        return translation;  // 如果所有字符都无法识别，返回包含 ? 的字符串
     }
     
     closeFloatWindow() {
